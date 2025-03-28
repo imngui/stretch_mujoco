@@ -12,10 +12,12 @@ import cv2
 import mujoco
 import mujoco.viewer
 import numpy as np
-from mujoco import MjData, MjModel
+from mujoco import MjData, MjModel, MjSpec
 
-import stretch_mujoco.config as config
-import stretch_mujoco.utils as utils
+# import stretch_mujoco.config as config
+# import stretch_mujoco.utils as utils
+import utils
+import config
 
 
 class StretchMujocoSimulator:
@@ -24,7 +26,7 @@ class StretchMujocoSimulator:
     """
 
     def __init__(
-        self, scene_xml_path: Optional[str] = None, model: Optional[MjModel] = None
+        self, scene_xml_path: Optional[str] = None, model: Optional[MjModel] = None, robot_spawn_pose: Optional[str] = None,
     ) -> None:
         """
         Initialize the Simulator handle with a scene
@@ -32,13 +34,47 @@ class StretchMujocoSimulator:
             scene_xml_path: str, path to the scene xml file
             model: MjModel, Mujoco model object
         """
+        
+
         if scene_xml_path is None:
             scene_xml_path = utils.default_scene_xml_path
+            self.mjspec = mujoco.MjSpec.from_file(scene_xml_path)
             self.mjmodel = mujoco.MjModel.from_xml_path(scene_xml_path)
         elif model is None:
+            self.mjspec = mujoco.MjSpec.from_file(scene_xml_path)
             self.mjmodel = mujoco.MjModel.from_xml_path(scene_xml_path)
         if model is not None:
             self.mjmodel = model
+
+        # print(f'mjmodel: {self.mjmodel}')
+        self.mjmodel = self.mjspec.compile()
+        xml = self.mjspec.to_xml()
+        
+
+        # Add stretch robot to the scene
+        robot_spawn = None
+        if robot_spawn_pose is not None:
+            spawn = robot_spawn_pose.split(" ")
+            robot_spawn = {
+                "pos": str(spawn[0] + " " + spawn[1] + " " + spawn[2]),
+                "quat": str(spawn[3] + " " + spawn[4] + " " + spawn[5] + " " + spawn[6]),
+            }
+
+        print(f'robot_spawn: {robot_spawn}')
+        stretch_xml_absolute = utils.get_absolute_path_stretch_xml(robot_spawn)
+        # print(f'stretch_xml_absolute: {stretch_xml_absolute}')
+
+        xml = utils.insert_line_after_mujoco_tag(
+            xml,
+            f' <include file="{stretch_xml_absolute}"/>',
+        )
+        # print(f'xml: {xml}')
+        
+        # self.mjmodel = mujoco.MjModel.from_xml_string(xml)
+        self.mjspec = mujoco.MjSpec.from_string(xml)
+        self.mjmodel = self.mjspec.compile()
+        # print(self.mjspec.to_xml())
+
         self.mjdata = mujoco.MjData(self.mjmodel)
         self._set_camera_properties()
         self.urdf_model = utils.URDFmodel()
@@ -437,7 +473,7 @@ class StretchMujocoSimulator:
         """
         return self._running or self._headless_running
 
-    def start(self, show_viewer_ui: bool = False, headless: bool = False) -> None:
+    def start(self, show_viewer_ui: bool = True, headless: bool = False) -> None:
         """
         Start the simulator in a using blocking Managed-vieiwer for precise timing. And user code
         is looped through callback. Some projects might need non-blocking Passive-vieiwer.
@@ -454,6 +490,16 @@ class StretchMujocoSimulator:
             threading.Thread(
                 target=self.__run_headless_simulation, name="mujoco_headless_thread"
             ).start()
+        # try:
+        #     self.__run(show_viewer_ui)
+        #     while True:
+        #         mujoco.simulate(self.mjmodel, self.mjdata)
+
+        #         if cv2.waitKey(1) & 0xFF == ord('q'):
+        #             cv2.destroyAllWindows()
+        #             break
+        # except KeyboardInterrupt:
+        #     self.stop()
         click.secho("Starting Stretch Mujoco Simulator...", fg="green")
         while not self.mjdata.time:
             time.sleep(0.2)
@@ -507,13 +553,16 @@ class StretchMujocoSimulator:
 @click.option(
     "--scene-xml-path", default=utils.default_scene_xml_path, help="Path to the scene xml file"
 )
+@click.option("--robot-spawn-pose", type=str, default="0.0 0.0 0.1 1 0 0 0", help="Robot spawn pose")
 @click.option("--headless", is_flag=True, help="Run the simulation headless")
 def main(
     scene_xml_path: str,
+    robot_spawn_pose: str,
     headless: bool,
 ) -> None:
-    robot_sim = StretchMujocoSimulator(scene_xml_path)
-    robot_sim.start(headless=headless)
+    robot_sim = StretchMujocoSimulator(scene_xml_path=scene_xml_path, robot_spawn_pose=robot_spawn_pose)
+    robot_sim.start(headless=False)
+    # robot_sim.start(headless=headless)
     # display camera feeds
     try:
         while robot_sim.is_running():
@@ -532,13 +581,15 @@ def main(
         robot_sim.stop()
         cv2.destroyAllWindows()
 
-if __name__ == "__main__":
-    import warnings
-    warnings.warn("use 'python -m stretch_mujoco', not 'python -m stretch_mujoco.stretch_mujoco'", DeprecationWarning)
+# if __name__ == "__main__":
+#     import warnings
+#     warnings.warn("use 'python -m stretch_mujoco', not 'python -m stretch_mujoco.stretch_mujoco'", DeprecationWarning)
 
-    # Check if we are on macOS
-    if os.uname().sysname == "Darwin":
-        print("macOS detected. Please use the following command to run the simulator:")
-        print("python3 -m stretch_mujoco")
-    else:
-        main()
+#     # Check if we are on macOS
+#     if os.uname().sysname == "Darwin":
+#         print("macOS detected. Please use the following command to run the simulator:")
+#         print("python3 -m stretch_mujoco")
+#     else:
+#         main()
+
+main()

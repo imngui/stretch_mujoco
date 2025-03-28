@@ -9,8 +9,9 @@ import numpy as np
 import pkg_resources
 import urchin as urdf_loader
 
-models_path = pkg_resources.resource_filename("stretch_mujoco", "models")
-default_scene_xml_path = models_path + "/scene.xml"
+# models_path = pkg_resources.resource_filename("stretch_mujoco", "models")
+models_path = "/Users/ingui/Documents/stretch_mujoco/stretch_mujoco/models"
+default_scene_xml_path = models_path + "/pc_scene.xml"
 default_robot_xml_path = models_path + "/stretch.xml"
 
 pkg_path = str(importlib_resources.files("stretch_urdf"))
@@ -174,6 +175,29 @@ def insert_line_after_mujoco_tag(xml_string: str, line_to_insert: str) -> str:
 
     return modified_xml
 
+def insert_line_after_asset_tag(xml_string: str, line_to_insert: str) -> str:
+    """
+    Insert a new line after the asset tag in the XML string
+    """
+    # Define the pattern to match the asset tag
+    pattern = r'(<asset\s*>)'
+
+    # Use re.sub to insert the new line after the matched tag
+    modified_xml = re.sub(pattern, f"\\1\n    {line_to_insert}", xml_string, count=1)
+
+    return modified_xml
+
+def insert_line_after_worldbody_tag(xml_string: str, line_to_insert: str) -> str:
+    """
+    Insert a new line after the worldbody tag in the XML string
+    """
+    # Define the pattern to match the worldbody tag
+    pattern = r'(<worldbody\s*>)'
+
+    # Use re.sub to insert the new line after the matched tag
+    modified_xml = re.sub(pattern, f"\\1\n    {line_to_insert}", xml_string, count=1)
+
+    return modified_xml
 
 def get_absolute_path_stretch_xml(robot_pose_attrib: dict = None) -> str:
     """

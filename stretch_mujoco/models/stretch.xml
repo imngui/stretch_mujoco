@@ -61,7 +61,7 @@
           <joint type="slide" axis="0 0 1" range="-0.02 .04" armature="0.1" damping="0.0001"/>
           <position ctrlrange="-0.02 .04" kp="4000" kv="124"/>
         </default>
-    </default>
+      </default>
 
       <default class="visual">
         <geom group="2" type="mesh" contype="0" conaffinity="0"/>

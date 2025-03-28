@@ -4,6 +4,7 @@ __pycache__/
 .idea/
 *.pyc
 *.egg-info/
+*.DS_Store
 build/
 
 # Vim files
